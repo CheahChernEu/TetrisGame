@@ -22,11 +22,12 @@ const GameWrapper = styled(motion.div)<{ $isMultiplayer?: boolean }>`
   padding: clamp(20px, 3vw, 40px);
   border-radius: 15px;
   box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
-  width: ${props => props.$isMultiplayer ? '95vw' : 'min(95vw, 1200px)'};
+  width: ${props => props.$isMultiplayer ? '95vw' : 'fit-content'};
   margin: 0 auto;
   box-sizing: border-box;
   justify-content: center;
   align-items: flex-start;
+  max-width: ${props => props.$isMultiplayer ? '1400px' : '800px'};
 `;
 
 interface GameBoardProps {
@@ -35,42 +36,46 @@ interface GameBoardProps {
 
 const GameBoard = styled.div<GameBoardProps>`
   display: grid;
-  grid-template-columns: repeat(${BOARD_WIDTH}, minmax(35px, 1.2fr));
-  grid-template-rows: repeat(${BOARD_HEIGHT}, minmax(35px, 1.2fr));
-  gap: 4px;
+  grid-template-columns: repeat(${BOARD_WIDTH}, 1fr);
+  grid-template-rows: repeat(${BOARD_HEIGHT}, 1fr);
+  gap: 2px;
   background: #000;
-  padding: clamp(15px, 2.5vw, 25px);
+  padding: clamp(10px, 2vw, 20px);
   border: 2px solid #0ff;
   border-radius: 12px;
   aspect-ratio: ${BOARD_WIDTH} / ${BOARD_HEIGHT};
-  width: ${props => props.$isMultiplayer ? 'min(95vh, 100%)' : 'min(90vh, 100%)'};
-  max-height: ${props => props.$isMultiplayer ? '95vh' : '90vh'};
+  width: min(90vh/2, 400px);
+  height: min(90vh, 800px);
   box-sizing: border-box;
   box-shadow: 0 0 40px rgba(0, 255, 255, 0.3);
+  margin: 0 auto;
+  
+  @media (max-width: 768px) {
+    width: min(95vw, 350px);
+    height: min(90vh, 700px);
+  }
 `;
 
 const Cell = styled(motion.div)<{ $color: string; $isNew?: boolean; $isCompleted?: boolean }>`
   width: 100%;
   height: 100%;
   background-color: ${props => props.$color || '#1a1a1a'};
-  border: ${props => props.$color ? '1px solid rgba(255, 255, 255, 0.1)' : 'none'};
-  transition: all 0.3s ease;
+  border: ${props => props.$color ? '2px solid rgba(0, 0, 0, 0.4)' : '1px solid rgba(40, 40, 40, 0.8)'};
+  box-shadow: ${props => props.$color ? 'inset 0 0 8px rgba(0, 0, 0, 0.2)' : 'none'};
   aspect-ratio: 1;
   min-width: 0;
-  ${props => props.$isNew && `
-    animation: pop 0.3s ease-out;
-    @keyframes pop {
-      0% { transform: scale(1.2); }
-      100% { transform: scale(1); }
-    }
-  `}
-  ${props => props.$isCompleted && `
-    animation: flash 0.5s ease-out;
-    @keyframes flash {
-      0% { background-color: white; }
-      100% { background-color: ${props.$color}; }
-    }
-  `}
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: ${props => props.$color ? '1px solid rgba(255, 255, 255, 0.6)' : 'none'};
+    pointer-events: none;
+  }
 `;
 
 const SidePanel = styled.div`
@@ -430,7 +435,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
 
   const rotatePiece = useCallback(() => {
     const rotatedShape = gameState.currentPiece.shape[0].map((_, index) =>
-      gameState.currentPiece.shape.map(row => row[row.length - 1 - index])
+      gameState.currentPiece.shape.map(row => row[index]).reverse()
     );
     const rotatedPiece = { ...gameState.currentPiece, shape: rotatedShape };
     if (!checkCollision(gameState.currentPosition, rotatedPiece)) {

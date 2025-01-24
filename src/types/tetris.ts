@@ -27,45 +27,45 @@ export const BOARD_HEIGHT = 20;
 export const TETROMINOS = {
   I: {
     shape: [[1, 1, 1, 1]],
-    color: '#00f0f0'
+    color: '#40ffff'
   },
   J: {
     shape: [[1, 0, 0], [1, 1, 1]],
-    color: '#0000f0'
+    color: '#4040ff'
   },
   L: {
     shape: [[0, 0, 1], [1, 1, 1]],
-    color: '#f0a000'
+    color: '#ffc040'
   },
   O: {
     shape: [[1, 1], [1, 1]],
-    color: '#f0f000'
+    color: '#ffff40'
   },
   S: {
     shape: [[0, 1, 1], [1, 1, 0]],
-    color: '#00f000'
+    color: '#40ff40'
   },
   T: {
     shape: [[0, 1, 0], [1, 1, 1]],
-    color: '#a000f0'
+    color: '#ff40ff'
   },
   Z: {
     shape: [[1, 1, 0], [0, 1, 1]],
-    color: '#f00000'
+    color: '#ff4040'
   }
 } as const;
 
 export type TetrominoType = keyof typeof TETROMINOS;
 
 export const LEVEL_SPEEDS = {
-  1: 800,
-  2: 700,
-  3: 600,
-  4: 500,
-  5: 400,
-  6: 300,
-  7: 250,
-  8: 200,
-  9: 150,
-  10: 100
-};
+  1: 300,  // Base speed
+  2: 250,  // Increased speed
+  3: 200,  // Increased speed
+  4: 160,  // Increased speed
+  5: 130,  // Increased speed
+  6: 110,  // Increased speed
+  7: 90,   // Increased speed
+  8: 80,   // Increased speed
+  9: 75,   // Increased speed
+  10: 70   // Maximum speed
+} as const;
