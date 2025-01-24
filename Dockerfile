@@ -3,6 +3,9 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
+# Increase system file watch limit
+RUN echo "fs.inotify.max_user_watches=524288" >> /etc/sysctl.conf
+
 # Copy package files
 COPY package*.json ./
 
