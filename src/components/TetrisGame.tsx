@@ -1,179 +1,177 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import styled from 'styled-components';
-import { GameState, Position, TetrisPiece, BOARD_WIDTH, BOARD_HEIGHT, TETROMINOS, LEVEL_SPEEDS } from '../types/tetris';
+import { Cell } from '../styles/StyledComponents';
+import { InstructionsPanel } from '../styles/InstructionsPanel';
+import { GameState, Position, TetrisPiece, BOARD_WIDTH, BOARD_HEIGHT, TETROMINOS, LEVEL_SPEEDS, GameBoardProps } from '../types/tetris';
+import { useBackgroundMusic } from '../utils/audio';
 
 const GameContainer = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
-  padding: clamp(20px, 3vw, 40px);
+  height: 100vh;
+  padding: 20px;
   box-sizing: border-box;
-  width: 100%;
-  max-width: 1600px;
+  width: 600px;
   margin: 0 auto;
+  position: relative;
+  overflow: visible;
+`;
+
+const LeaderboardContainer = styled.div`
+  position: fixed;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  padding: clamp(15px, 2vw, 20px);
+  border-radius: 10px;
+  border: 2px solid #0ff;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3),
+              inset 0 0 15px rgba(0, 255, 255, 0.2);
+  width: 250px;
+  z-index: 10;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+
+  @media (max-width: 1400px) {
+    position: static;
+    transform: none;
+    margin: 20px auto;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  @media (max-height: 800px) {
+    padding: 10px;
+    font-size: 0.9em;
+  }
+`;
+
+const LeaderboardTitle = styled.h2`
+  color: #0ff;
+  text-align: center;
+  margin-bottom: 15px;
+  font-family: 'Orbitron', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 1.2em;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+`;
+
+const LeaderboardEntry = styled.div`
+  display: grid;
+  grid-template-columns: 30px 2fr 1fr 1fr;
+  gap: 10px;
+  padding: 8px;
+  border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+  font-family: 'Orbitron', sans-serif;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9em;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .rank {
+    color: #0ff;
+  }
+
+  .nickname {
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .score, .level {
+    text-align: center;
+  }
 `;
 
 const GameWrapper = styled(motion.div)<{ $isMultiplayer?: boolean }>`
   display: flex;
-  gap: clamp(20px, 3vw, 40px);
+  gap: 40px;
   background: rgba(0, 0, 0, 0.8);
-  padding: clamp(20px, 3vw, 40px);
+  padding: 40px;
   border-radius: 15px;
   box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
-  width: ${props => props.$isMultiplayer ? '95vw' : 'fit-content'};
+  width: ${props => props.$isMultiplayer ? '800px' : '600px'};
   margin: 0 auto;
   box-sizing: border-box;
   justify-content: center;
   align-items: flex-start;
-  max-width: ${props => props.$isMultiplayer ? '1400px' : '800px'};
 `;
-
-interface GameBoardProps {
-  $isMultiplayer?: boolean;
-}
 
 const GameBoard = styled.div<GameBoardProps>`
   display: grid;
-  grid-template-columns: repeat(${BOARD_WIDTH}, 1fr);
-  grid-template-rows: repeat(${BOARD_HEIGHT}, 1fr);
-  gap: 2px;
+  grid-template-columns: repeat(${BOARD_WIDTH}, minmax(0, 1fr));
+  grid-template-rows: repeat(${BOARD_HEIGHT}, minmax(0, 1fr));
+  gap: 1px;
   background: #000;
-  padding: clamp(10px, 2vw, 20px);
+  padding: 10px;
   border: 2px solid #0ff;
   border-radius: 12px;
-  aspect-ratio: ${BOARD_WIDTH} / ${BOARD_HEIGHT};
-  width: min(90vh/2, 400px);
-  height: min(90vh, 800px);
+  width: 350px;
+  aspect-ratio: 1/2;
   box-sizing: border-box;
   box-shadow: 0 0 40px rgba(0, 255, 255, 0.3);
   margin: 0 auto;
-  
-  @media (max-width: 768px) {
-    width: min(95vw, 350px);
-    height: min(90vh, 700px);
-  }
-`;
-
-const Cell = styled(motion.div)<{ $color: string; $isNew?: boolean; $isCompleted?: boolean }>`
-  width: 100%;
-  height: 100%;
-  background-color: ${props => props.$color || '#1a1a1a'};
-  border: ${props => props.$color ? '2px solid rgba(0, 0, 0, 0.4)' : '1px solid rgba(40, 40, 40, 0.8)'};
-  box-shadow: ${props => props.$color ? 'inset 0 0 8px rgba(0, 0, 0, 0.2)' : 'none'};
-  aspect-ratio: 1;
-  min-width: 0;
   position: relative;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border: ${props => props.$color ? '1px solid rgba(255, 255, 255, 0.6)' : 'none'};
-    pointer-events: none;
+  overflow: hidden;
+
+  @media (max-width: 768px) {
+    width: 280px;
   }
 `;
 
 const SidePanel = styled.div`
   display: flex;
   flex-direction: column;
-  gap: clamp(20px, 3vh, 30px);
-  min-width: 250px;
-  max-width: 300px;
+  gap: 15px;
+  width: 140px;
 `;
 
 const ScoreBoard = styled.div`
   background: rgba(0, 0, 0, 0.6);
-  padding: 15px;
+  padding: 8px;
   border-radius: 5px;
   border: 1px solid #0ff;
   color: #fff;
   text-align: center;
   h3 {
-    margin: 0 0 10px;
+    margin: 0 0 6px;
     color: #0ff;
     font-family: 'Orbitron', sans-serif;
+    font-size: 0.9em;
   }
 `;
 
 const Score = styled.div`
-  font-size: 24px;
+  font-size: 18px;
   font-weight: bold;
   color: #0ff;
-  margin-bottom: 15px;
+  margin-bottom: 8px;
   font-family: 'Orbitron', sans-serif;
 `;
 
 const NextPiece = styled.div`
   background: rgba(0, 0, 0, 0.6);
-  padding: 15px;
+  padding: 8px;
   border-radius: 5px;
   border: 1px solid #0ff;
   h3 {
-    margin: 0 0 10px;
+    margin: 0 0 6px;
     color: #0ff;
     text-align: center;
     font-family: 'Orbitron', sans-serif;
-  }
-`;
-
-const InstructionsPanel = styled.div`
-  background: rgba(0, 0, 0, 0.6);
-  padding: 15px;
-  border-radius: 5px;
-  border: 1px solid #0ff;
-  color: #fff;
-  font-family: 'Orbitron', sans-serif;
-  font-size: 0.8em;
-  
-  h3 {
-    margin: 0 0 10px;
-    color: #0ff;
-    text-align: center;
-  }
-
-  .key {
-    color: #0ff;
-    background: rgba(0, 255, 255, 0.1);
-    padding: 2px 6px;
-    border-radius: 3px;
-    border: 1px solid rgba(0, 255, 255, 0.3);
-    display: inline-block;
-    margin: 0 4px;
-    font-weight: bold;
-  }
-
-  ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  li {
-    margin: 8px 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .controls-section {
-    margin-top: 10px;
-  }
-
-  .controls-title {
-    color: #0ff;
     font-size: 0.9em;
-    margin: 10px 0 5px;
-    text-align: center;
   }
 `;
 
 const GameButton = styled(motion.button)`
-  padding: 10px 20px;
+  padding: 6px 12px;
   background: transparent;
   color: #0ff;
   border: 2px solid #0ff;
@@ -181,7 +179,8 @@ const GameButton = styled(motion.button)`
   cursor: pointer;
   font-family: 'Orbitron', sans-serif;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
+  font-size: 0.8em;
   transition: all 0.3s;
   &:hover {
     background: rgba(0, 255, 255, 0.1);
@@ -191,13 +190,30 @@ const GameButton = styled(motion.button)`
 
 const createEmptyBoard = () => Array(BOARD_HEIGHT).fill(null).map(() => Array(BOARD_WIDTH).fill(''));
 
-const getRandomTetromino = (): TetrisPiece => {
-  const tetrominos = Object.values(TETROMINOS).map(tetromino => ({
-    shape: tetromino.shape.map(row => [...row]),
-    color: tetromino.color
-  }));
-  return tetrominos[Math.floor(Math.random() * tetrominos.length)];
+interface GetRandomTetrominoFunction extends Function {
+  bag?: TetrisPiece[];
+}
+
+const getRandomTetromino: GetRandomTetrominoFunction & (() => TetrisPiece) = () => {
+  // Static bag to store the current sequence of tetrominos
+  if (!getRandomTetromino.bag || getRandomTetromino.bag.length === 0) {
+    // Create a new bag with all tetromino types when empty
+    getRandomTetromino.bag = Object.values(TETROMINOS).map(tetromino => ({
+      shape: tetromino.shape.map(row => [...row]),
+      color: tetromino.color
+    }));
+    // Shuffle the bag using Fisher-Yates algorithm
+    for (let i = getRandomTetromino.bag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [getRandomTetromino.bag[i], getRandomTetromino.bag[j]] = 
+      [getRandomTetromino.bag[j], getRandomTetromino.bag[i]];
+    }
+  }
+  // Return and remove the next piece from the bag
+  return getRandomTetromino.bag.pop()!;
 };
+// Add type definition for the static property
+(getRandomTetromino as any).bag = null;
 
 const CountdownOverlay = styled(motion.div)`
   position: fixed;
@@ -221,21 +237,33 @@ const CountdownText = styled(motion.div)`
   letter-spacing: 4px;
 `;
 
-const TimerDisplay = styled.div`
+export const TimerDisplay = styled.div`
   color: #0ff;
   font-size: 24px;
+  font-weight: bold;
   text-align: center;
-  margin-bottom: 10px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #0ff;
+  border-radius: 8px;
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 80px;
   text-shadow: 0 0 10px rgba(0, 255, 255, 0.7);
   font-family: 'Orbitron', sans-serif;
   letter-spacing: 2px;
-  animation: timerPulse 1s infinite alternate;
-
-  @keyframes timerPulse {
-    from { text-shadow: 0 0 10px rgba(0, 255, 255, 0.7); }
-    to { text-shadow: 0 0 20px rgba(0, 255, 255, 1); }
-  }
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+  z-index: 10;
 `;
+
+interface LeaderboardEntry {
+  nickname: string;
+  score: number;
+  level: number;
+  timestamp: number;
+}
 
 interface TetrisGameProps {
   isMultiplayer?: boolean;
@@ -244,6 +272,8 @@ interface TetrisGameProps {
   onBackToMenu?: () => void;
   isGameOver?: boolean;
   timeLeft?: number;
+  playerNickname?: string;
+  shouldStartCountdown?: boolean;
 }
 
 const TetrisGame: React.FC<TetrisGameProps> = ({ 
@@ -252,10 +282,147 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
   onScoreUpdate, 
   onBackToMenu, 
   isGameOver: externalGameOver,
-  timeLeft
+  timeLeft,
+  playerNickname,
+  shouldStartCountdown = false
 }) => {
-  const [isCountingDown, setIsCountingDown] = useState(true);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [isCountingDown, setIsCountingDown] = useState(false);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [countdownNumber, setCountdownNumber] = useState(3);
+  const [gameState, setGameState] = useState<GameState>({
+    board: createEmptyBoard(),
+    currentPiece: getRandomTetromino(),
+    currentPosition: { x: Math.floor(BOARD_WIDTH / 2) - 1, y: 0 },
+    nextPiece: getRandomTetromino(),
+    savedPiece: null,
+    canSavePiece: true,
+    score: 0,
+    isGameOver: false,
+    level: 1,
+    lastKeyPressTime: {}
+  });
+  const [newBlocks, setNewBlocks] = useState<{ x: number; y: number }[]>([]);
+  const [completedLines, setCompletedLines] = useState<number[]>([]);
+
+  useBackgroundMusic({ isPlaying: isMusicPlaying });
+
+  useEffect(() => {
+    if (!isCountingDown && shouldStartCountdown && countdownNumber === 0) {
+      setIsMusicPlaying(true);
+    }
+  }, [isCountingDown, shouldStartCountdown, countdownNumber]);
+
+  const cleanupAudio = useCallback(() => {
+    setIsMusicPlaying(false);
+    
+    // Force cleanup of all audio elements
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach(audio => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.remove();
+    });
+
+    // Additional cleanup to ensure no audio context remains
+    const audioContexts = document.querySelectorAll('.audio-context');
+    audioContexts.forEach(context => {
+      if (context instanceof AudioContext) {
+        context.close();
+      }
+    });
+
+    // Create and close a new context to ensure all audio is stopped
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    audioContext.close();
+  }, []);
+
+  // Stop music when component unmounts or returns to menu
+  useEffect(() => {
+    if (onBackToMenu) {
+      cleanupAudio();
+    }
+    return () => {
+      setIsMusicPlaying(false);
+    };
+  }, [onBackToMenu, cleanupAudio]);
+
+  useEffect(() => {
+    if (gameState.isGameOver) {
+      setIsMusicPlaying(false);
+    }
+  }, [gameState.isGameOver]);
+
+  useEffect(() => {
+    return () => {
+      setIsMusicPlaying(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (gameState.isGameOver) {
+      setIsMusicPlaying(false);
+    }
+  }, [gameState.isGameOver]);
+
+  useEffect(() => {
+    return () => {
+      setIsMusicPlaying(false);
+    };
+  }, []);
+
+  // Countdown starts only when shouldStartCountdown is true
+  useEffect(() => {
+    if (shouldStartCountdown && !isMultiplayer && !isCountingDown) {
+      setIsCountingDown(true);
+      setCountdownNumber(3);
+    }
+  }, [shouldStartCountdown, isMultiplayer]);
+
+  // Reset game state when returning to menu
+  useEffect(() => {
+    return () => {
+      setIsCountingDown(false);
+      setCountdownNumber(3);
+      setGameState({
+        board: createEmptyBoard(),
+        currentPiece: getRandomTetromino(),
+        currentPosition: { x: Math.floor(BOARD_WIDTH / 2) - 1, y: 0 },
+        nextPiece: getRandomTetromino(),
+        savedPiece: null,
+        canSavePiece: true,
+        score: 0,
+        isGameOver: false,
+        level: 1,
+        lastKeyPressTime: {}
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    const storedLeaderboard = localStorage.getItem('tetrisLeaderboard');
+    if (storedLeaderboard) {
+      setLeaderboard(JSON.parse(storedLeaderboard));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (gameState.isGameOver && !isMultiplayer && playerNickname) {
+      const newEntry: LeaderboardEntry = {
+        nickname: playerNickname,
+        score: gameState.score,
+        level: gameState.level,
+        timestamp: Date.now()
+      };
+
+      const updatedLeaderboard = [...leaderboard, newEntry]
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5);
+
+      setLeaderboard(updatedLeaderboard);
+      localStorage.setItem('tetrisLeaderboard', JSON.stringify(updatedLeaderboard));
+    }
+  }, [gameState.isGameOver]);
 
   useEffect(() => {
     if (isCountingDown) {
@@ -271,19 +438,6 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       return () => clearInterval(countdownInterval);
     }
   }, [isCountingDown]);
-
-  const [gameState, setGameState] = useState<GameState>({
-    board: createEmptyBoard(),
-    currentPiece: getRandomTetromino(),
-    currentPosition: { x: Math.floor(BOARD_WIDTH / 2) - 1, y: 0 },
-    nextPiece: getRandomTetromino(),
-    savedPiece: null,
-    canSavePiece: true,
-    score: 0,
-    isGameOver: false,
-    level: 1,
-    lastKeyPressTime: {}
-  });
 
   // Update game state when external game over state changes
   useEffect(() => {
@@ -307,9 +461,6 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       })
     );
   }, [gameState.board]);
-
-  const [newBlocks, setNewBlocks] = useState<{ x: number; y: number }[]>([]);
-  const [completedLines, setCompletedLines] = useState<number[]>([]);
 
   const placePiece = useCallback(() => {
     const newBoard = gameState.board.map(row => [...row]);
@@ -371,22 +522,30 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
 
   const hardDrop = useCallback(() => {
     let dropPosition = { ...gameState.currentPosition };
+    
     while (!checkCollision({ ...dropPosition, y: dropPosition.y + 1 }, gameState.currentPiece)) {
       dropPosition.y += 1;
     }
-    setGameState(prev => {
-      const newBoard = prev.board.map(row => [...row]);
-      prev.currentPiece.shape.forEach((row, dy) => {
-        row.forEach((cell, dx) => {
-          if (cell === 1) {
-            const newY = dropPosition.y + dy;
-            const newX = dropPosition.x + dx;
-            if (newY >= 0) {
-              newBoard[newY][newX] = prev.currentPiece.color;
-            }
+
+    const newBoard = gameState.board.map(row => [...row]);
+    const newBlockPositions: { x: number; y: number }[] = [];
+
+    gameState.currentPiece.shape.forEach((row, dy) => {
+      row.forEach((cell, dx) => {
+        if (cell === 1) {
+          const newY = dropPosition.y + dy;
+          const newX = dropPosition.x + dx;
+          if (newY >= 0) {
+            newBoard[newY][newX] = gameState.currentPiece.color;
+            newBlockPositions.push({ x: newX, y: newY });
           }
-        });
+        }
       });
+    });
+
+    setNewBlocks(newBlockPositions);
+
+    setGameState(prev => {
       
       let linesCleared = 0;
       const updatedBoard = newBoard.filter(row => {
@@ -444,18 +603,18 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
   }, [gameState, checkCollision]);
 
   useEffect(() => {
-    if (gameState.isGameOver) return;
+    if (gameState.isGameOver || isCountingDown) return;
 
     const interval = setInterval(() => {
       moveDown();
     }, LEVEL_SPEEDS[gameState.level as keyof typeof LEVEL_SPEEDS]);
 
     return () => clearInterval(interval);
-  }, [gameState.isGameOver, gameState.level, moveDown]);
+  }, [gameState.isGameOver, gameState.level, moveDown, isCountingDown]);
 
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      if (gameState.isGameOver) return;
+      if (gameState.isGameOver || isCountingDown) return;
 
       if (!isMultiplayer) {
         switch (event.key) {
@@ -579,6 +738,9 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
       level: 1,
       lastKeyPressTime: {}
     });
+    setIsCountingDown(true);
+    setCountdownNumber(3);
+    setIsMusicPlaying(false);
   };
 
   const getGhostPosition = useCallback(() => {
@@ -661,6 +823,28 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
 
   return (
     <GameContainer>
+      {!isMultiplayer && leaderboard.length > 0 && (
+        <LeaderboardContainer>
+          <LeaderboardTitle>Top 5 Players</LeaderboardTitle>
+          <LeaderboardEntry style={{ fontWeight: 'bold', color: '#0ff' }}>
+            <span>#</span>
+            <span style={{ textAlign: 'left' }}>Player</span>
+            <span>Score</span>
+            <span>Level</span>
+          </LeaderboardEntry>
+          {leaderboard
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 5)
+            .map((entry, index) => (
+              <LeaderboardEntry key={`${entry.nickname}-${entry.timestamp}`}>
+                <span className="rank">{index + 1}</span>
+                <span className="nickname">{entry.nickname}</span>
+                <span className="score">{entry.score}</span>
+                <span className="level">{entry.level}</span>
+              </LeaderboardEntry>
+            ))}
+        </LeaderboardContainer>
+      )}
       <AnimatePresence>
         {isCountingDown && (
           <CountdownOverlay
@@ -692,30 +876,15 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
         $isMultiplayer={isMultiplayer}
       >
         {isMultiplayer && timeLeft !== undefined && (
-          <TimerDisplay style={{ position: 'absolute', top: '-40px', left: '50%', transform: 'translateX(-50%)' }}>
-            {timeLeft}s
-          </TimerDisplay>
+          <TimerDisplay>{timeLeft}s</TimerDisplay>
         )}
         <GameBoard
           style={{
-            transform: `scale(${isMultiplayer ? 0.8 : 1})`,
+            transform: `scale(${isMultiplayer ? 0.9 : 1})`,
             transition: 'transform 0.3s ease',
             position: 'relative'
           }}
         >
-          {isMultiplayer && timeLeft !== undefined && (
-            <TimerDisplay
-              style={{
-                position: 'absolute',
-                top: '-40px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 10
-              }}
-            >
-              {timeLeft}s
-            </TimerDisplay>
-          )}
           {renderBoard()}
         </GameBoard>
         <SidePanel>
