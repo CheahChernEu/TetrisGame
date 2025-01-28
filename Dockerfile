@@ -1,46 +1,21 @@
-# Build stage for client dependencies
-FROM node:18-alpine AS client-deps
+# Development stage for frontend
+FROM node:20-alpine as frontend
+
 WORKDIR /app
+
+# Install dependencies first
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
-# Build stage for server dependencies
-FROM node:18-alpine AS server-deps
-WORKDIR /app/server
-COPY server/package*.json ./
-RUN apk add --no-cache sqlite sqlite-dev python3 make g++ && \
-    npm ci
-
-# Final stage
-FROM node:18-alpine
+# Development stage for backend
+FROM node:20-alpine as backend
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache sqlite && \
-    mkdir -p /app/server/data /app/node_modules/.vite-temp
+# Install backend dependencies
+COPY server/package*.json ./
+RUN npm install
 
-# Copy dependencies
-COPY --from=client-deps /app/node_modules ./node_modules
-COPY --from=server-deps /app/server/node_modules ./server/node_modules
+# Create data directory with correct permissions
+RUN mkdir -p /app/data && chown -R node:node /app
 
-# Copy application source
-COPY . .
-
-# Set proper permissions
-RUN chown -R node:node /app && \
-    chmod -R 755 /app/node_modules/.vite-temp && \
-    chmod -R 777 /app/server/data
-
-# Switch to node user for security
 USER node
-
-# Set environment variables for file watching
-ENV CHOKIDAR_USEPOLLING=true
-ENV WATCHPACK_POLLING=true
-
-# Expose ports
-EXPOSE 5173
-EXPOSE 3003
-
-# Default command (will be overridden by docker-compose)
-CMD ["npm", "run", "dev"]

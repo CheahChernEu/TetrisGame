@@ -5,45 +5,31 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    user: node
+      target: frontend
     ports:
       - "5173:5173"
     volumes:
       - .:/app
       - /app/node_modules
-      - /app/dist
-      - /app/node_modules/.vite-temp
     environment:
       - NODE_ENV=development
-      - VITE_HOST=0.0.0.0
-      - VITE_API_BASE_URL=http://localhost:3003
-      - VITE_WS_URL=ws://localhost:3003
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-    command: npm run dev -- --host 0.0.0.0
+    command: npm run dev
     depends_on:
-      tetris-server:
-        condition: service_healthy
+      - tetris-server
 
   tetris-server:
     build:
       context: .
       dockerfile: Dockerfile
-    working_dir: /app/server
+      target: backend
     user: node
     ports:
       - "3003:3003"
     volumes:
-      - ./server:/app/server
-      - /app/server/node_modules  # Preserves node_modules from the image
-      - ./server/data:/app/server/data:rw
+      - ./server:/app
+      - /app/node_modules
+      - ./server/data:/app/data:rw
     environment:
       - NODE_ENV=development
       - PORT=3003
-    command: npm start
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3003/leaderboard"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    command: npm run dev
