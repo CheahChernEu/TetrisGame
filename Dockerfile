@@ -1,28 +1,27 @@
-# Build stage for frontend
-FROM node:20-alpine as frontend-build
-
+# Development stage for frontend
+FROM node:20-alpine as frontend
 WORKDIR /app
 
-# Install dependencies first
+# Install dependencies
 COPY package*.json ./
 RUN npm install
 
-# Copy source files and build
+# Copy source files
 COPY . .
-RUN npm run build
 
-# Production stage for frontend
-FROM nginx:alpine as frontend
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=frontend-build /app/dist /usr/share/nginx/html
+# Expose Vite dev server port
+EXPOSE 5173
 
-# Production stage for backend
+# Start Vite dev server
+CMD ["npm", "run", "dev", "--", "--host"]
+
+# Development stage for backend
 FROM node:20-alpine as backend
 WORKDIR /app
 
-# Install production dependencies only
+# Install all dependencies including devDependencies
 COPY server/package*.json ./
-RUN npm ci --only=production
+RUN npm install
 
 # Copy backend source files
 COPY server/ ./
@@ -33,6 +32,6 @@ RUN mkdir -p /app/data && \
     chmod 755 /app && \
     chmod 777 /app/data
 
-ENV NODE_ENV=production
+EXPOSE 3003
 USER node
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]

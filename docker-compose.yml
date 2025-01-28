@@ -7,7 +7,13 @@ services:
       dockerfile: Dockerfile
       target: frontend
     ports:
-      - "80:80"
+      - "5173:5173"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_BASE_URL=http://194.233.80.15:3003
+      - VITE_WS_URL=ws://194.233.80.15:3003
     restart: unless-stopped
     depends_on:
       - tetris-server
@@ -20,8 +26,10 @@ services:
     ports:
       - "3003:3003"
     volumes:
+      - ./server:/app
+      - /app/node_modules
       - ./server/data:/app/data:rw
-    restart: unless-stopped
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=3003
+    restart: unless-stopped
