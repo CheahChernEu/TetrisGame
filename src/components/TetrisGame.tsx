@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import styled from 'styled-components';
 import { Cell } from '../styles/StyledComponents';
+import { InstructionsPanel } from '../styles/InstructionsPanel';
 import { GameState, Position, TetrisPiece, BOARD_WIDTH, BOARD_HEIGHT, TETROMINOS, LEVEL_SPEEDS, GameBoardProps } from '../types/tetris';
 import { useBackgroundMusic } from '../utils/audio';
 import { leaderboardService } from '../services/leaderboardService';
@@ -290,6 +291,34 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
   onGarbageBlocksGenerated,
   onReceiveGarbageBlocks
 }) => {
+  const [isRestarting, setIsRestarting] = useState(false);
+
+  const handleRestart = useCallback(() => {
+    if (isRestarting) return; // Prevent multiple rapid restarts
+    setIsRestarting(true);
+    setGameState({
+      board: createEmptyBoard(),
+      currentPiece: getRandomTetromino(),
+      currentPosition: { x: Math.floor(BOARD_WIDTH / 2) - 1, y: 0 },
+      nextPiece: getRandomTetromino(),
+      savedPiece: null,
+      canSavePiece: true,
+      score: 0,
+      isGameOver: false,
+      level: 1,
+      lastKeyPressTime: {}
+    });
+    setNewBlocks([]);
+    setCompletedLines([]);
+    setIsCountingDown(true);
+    setCountdownNumber(3);
+    setIsMusicPlaying(true);
+    
+    // Reset the restarting state after the countdown finishes
+    setTimeout(() => {
+      setIsRestarting(false);
+    }, 3000); // 3 seconds for the countdown
+  }, []);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
@@ -417,34 +446,7 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     };
   }, []);
 
-  const [isRestarting, setIsRestarting] = useState(false);
 
-const handleRestart = useCallback(() => {
-    if (isRestarting) return; // Prevent multiple rapid restarts
-    setIsRestarting(true);
-    setGameState({
-      board: createEmptyBoard(),
-      currentPiece: getRandomTetromino(),
-      currentPosition: { x: Math.floor(BOARD_WIDTH / 2) - 1, y: 0 },
-      nextPiece: getRandomTetromino(),
-      savedPiece: null,
-      canSavePiece: true,
-      score: 0,
-      isGameOver: false,
-      level: 1,
-      lastKeyPressTime: {}
-    });
-    setNewBlocks([]);
-    setCompletedLines([]);
-    setIsCountingDown(true);
-    setCountdownNumber(3);
-    setIsMusicPlaying(true);
-    
-    // Reset the restarting state after the countdown finishes
-    setTimeout(() => {
-      setIsRestarting(false);
-    }, 3000); // 3 seconds for the countdown
-  }, []);
 
   // Remove the import statement from line 458
   useEffect(() => {
@@ -1003,43 +1005,63 @@ const handleRestart = useCallback(() => {
               {renderNextPiece()}
             </GameBoard>
           </NextPiece>
-          <GameButton onClick={handleRestart} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <button
-              onClick={handleRestart}
-              disabled={isRestarting}
-              style={{
-                marginTop: '10px',
-                background: isRestarting ? 'rgba(0, 255, 255, 0.1)' : 'transparent',
-                color: '#0ff',
-                border: '2px solid #0ff',
-                borderRadius: '5px',
-                cursor: isRestarting ? 'not-allowed' : 'pointer',
-                fontFamily: 'Orbitron, sans-serif',
-                textTransform: 'uppercase',
-                letterSpacing: '2px',
-                padding: '10px 20px',
-                width: '100%',
-                transition: 'all 0.3s'
-              }}
-              onMouseEnter={(e) => {
-                if (!isRestarting) {
-                  e.currentTarget.style.background = 'rgba(0, 255, 255, 0.1)';
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 255, 255, 0.5)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isRestarting) {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.boxShadow = 'none';
-                }
-              }}
+          <InstructionsPanel>
+            <h3>Controls</h3>
+            {!isMultiplayer ? (
+              <ul>
+                <li><span>Move Left</span> <span className="key">←</span></li>
+                <li><span>Move Right</span> <span className="key">→</span></li>
+                <li><span>Move Down</span> <span className="key">↓</span></li>
+                <li><span>Rotate</span> <span className="key">↑</span></li>
+                <li><span>Hard Drop</span> <span className="key">Space</span></li>
+                <li><span>Hold Piece</span> <span className="key">M</span></li>
+              </ul>
+            ) : (
+              <div className="controls-section">
+                <div className="controls-title">Player {playerNumber}</div>
+                <ul>
+                  {playerNumber === 1 ? (
+                    <>
+                      <li><span>Move Left</span> <span className="key">A</span></li>
+                      <li><span>Move Right</span> <span className="key">D</span></li>
+                      <li><span>Move Down</span> <span className="key">S</span></li>
+                      <li><span>Rotate</span> <span className="key">W</span></li>
+                      <li><span>Hard Drop</span> <span className="key">Shift</span></li>
+                      <li><span>Hold Piece</span> <span className="key">Tab</span></li>
+                    </>
+                  ) : (
+                    <>
+                      <li><span>Move Left</span> <span className="key">←</span></li>
+                      <li><span>Move Right</span> <span className="key">→</span></li>
+                      <li><span>Move Down</span> <span className="key">↓</span></li>
+                      <li><span>Rotate</span> <span className="key">↑</span></li>
+                      <li><span>Hard Drop</span> <span className="key">Space</span></li>
+                      <li><span>Hold Piece</span> <span className="key">M</span></li>
+                    </>
+                  )}
+                </ul>
+              </div>
+            )}
+          </InstructionsPanel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <GameButton
+              onClick={onBackToMenu}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
             >
-              RESTART GAME
-            </button>
-          </GameButton>
-          <GameButton onClick={onBackToMenu} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            Back to Menu
-          </GameButton>
+              Back to Menu
+            </GameButton>
+            {!isMultiplayer && (
+              <GameButton
+                onClick={handleRestart}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                disabled={isRestarting}
+              >
+                Restart Game
+              </GameButton>
+            )}
+          </div>
         </SidePanel>
       </GameWrapper>
     </GameContainer>
