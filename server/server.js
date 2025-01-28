@@ -65,32 +65,46 @@ app.post('/leaderboard', (req, res) => {
     return;
   }
 
-  const stmt = db.prepare('INSERT INTO leaderboard (nickname, score, level, timestamp) VALUES (?, ?, ?, ?)');
-  stmt.run([nickname, score, level, timestamp], function(err) {
-    if (err) {
-      console.error('Error adding leaderboard entry:', err);
-      res.status(500).json({ error: 'Internal server error' });
-      return;
-    }
+  // Validate data types
+  if (typeof score !== 'number' || typeof level !== 'number' || typeof timestamp !== 'number') {
+    res.status(400).json({ error: 'Invalid data types for score, level, or timestamp' });
+    return;
+  }
 
-    // Fetch and return the updated leaderboard
-    db.all('SELECT * FROM leaderboard ORDER BY score DESC LIMIT 5', (err, rows) => {
+  const stmt = db.prepare('INSERT INTO leaderboard (nickname, score, level, timestamp) VALUES (?, ?, ?, ?)');
+  
+  try {
+    stmt.run(nickname, score, level, timestamp, function(err) {
       if (err) {
-        console.error('Error fetching updated leaderboard:', err);
+        console.error('Error adding leaderboard entry:', err);
         res.status(500).json({ error: 'Internal server error' });
         return;
       }
-      // Broadcast updated leaderboard to all clients
-      const leaderboardData = JSON.stringify(rows);
-      clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(leaderboardData);
+
+      // Fetch and return the updated leaderboard
+      db.all('SELECT * FROM leaderboard ORDER BY score DESC LIMIT 5', (err, rows) => {
+        if (err) {
+          console.error('Error fetching updated leaderboard:', err);
+          res.status(500).json({ error: 'Internal server error' });
+          return;
         }
+        // Broadcast updated leaderboard to all clients
+        const leaderboardData = JSON.stringify(rows);
+        clients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(leaderboardData);
+          }
+        });
+        res.status(201).json(rows);
       });
-      res.status(201).json(rows);
     });
-  });
-  stmt.finalize();
+  } catch (err) {
+    console.error('Error executing prepared statement:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    stmt.finalize();
+  }
+
 });
 
 const PORT = process.env.PORT || 3003;

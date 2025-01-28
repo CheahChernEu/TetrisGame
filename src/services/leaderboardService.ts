@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { LeaderboardEntry } from '../types/tetris';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3005';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3003';
 
 export const leaderboardService = {
   async getLeaderboard(): Promise<LeaderboardEntry[]> {
@@ -24,19 +24,47 @@ export const leaderboardService = {
     }
   },
 
-  // WebSocket connection for real-time updates
+  // WebSocket connection for real-time updates with auto-reconnect
   subscribeToUpdates(callback: (leaderboard: LeaderboardEntry[]) => void): WebSocket {
-    const ws = new WebSocket(`${API_BASE_URL.replace('http', 'ws')}/leaderboard-updates`);
-    
-    ws.onmessage = (event) => {
-      const leaderboard = JSON.parse(event.data);
-      callback(leaderboard);
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const reconnectDelay = 1000; // Start with 1 second delay
+
+    const connect = (): WebSocket => {
+      const ws = new WebSocket(`${API_BASE_URL.replace('http', 'ws')}/leaderboard-updates`);
+      
+      ws.onmessage = (event) => {
+        try {
+          const leaderboard = JSON.parse(event.data);
+          callback(leaderboard);
+        } catch (error) {
+          console.error('Error parsing leaderboard data:', error);
+        }
+      };
+
+      ws.onclose = () => {
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          const delay = reconnectDelay * Math.pow(2, reconnectAttempts - 1); // Exponential backoff
+          console.log(`WebSocket closed. Reconnecting in ${delay}ms...`);
+          setTimeout(() => connect(), delay);
+        } else {
+          console.error('WebSocket connection failed after maximum attempts');
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+      };
+
+      return ws;
     };
 
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    return ws;
+    return connect();
   }
 };
