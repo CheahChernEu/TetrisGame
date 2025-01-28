@@ -2,8 +2,8 @@
 FROM node:18-alpine AS deps
 WORKDIR /app
 
-# Install SQLite dependencies
-RUN apk add --no-cache sqlite
+# Install SQLite and required build dependencies
+RUN apk add --no-cache sqlite sqlite-dev python3 make g++
 
 # Copy package files
 COPY package*.json ./
@@ -32,7 +32,8 @@ COPY . .
 # Create required directories and set permissions
 RUN mkdir -p /app/server/data /app/node_modules/.vite-temp && \
     chown -R node:node /app && \
-    chmod -R 755 /app/node_modules/.vite-temp
+    chmod -R 755 /app/node_modules/.vite-temp && \
+    chmod -R 777 /app/server/data
 
 # Switch to node user
 USER node

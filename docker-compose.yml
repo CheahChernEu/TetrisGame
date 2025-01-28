@@ -35,7 +35,7 @@ services:
       - "3003:3003"
     volumes:
       - ./server:/app/server
-      - /app/server/node_modules
+      - ./server/node_modules:/app/server/node_modules
       - ./server/data:/app/server/data:rw
     environment:
       - NODE_ENV=development
