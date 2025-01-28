@@ -1,37 +1,30 @@
-# Build stage for dependencies
-FROM node:18-alpine AS deps
+# Build stage for client dependencies
+FROM node:18-alpine AS client-deps
 WORKDIR /app
-
-# Install SQLite and required build dependencies
-RUN apk add --no-cache sqlite sqlite-dev python3 make g++ && \
-    mkdir -p /app/server/data
-
-# Copy package files
 COPY package*.json ./
-COPY server/package*.json ./server/
+RUN npm ci
 
-# Install dependencies
-RUN npm ci && \
-    cd server && \
-    npm ci && \
-    cd ..
+# Build stage for server dependencies
+FROM node:18-alpine AS server-deps
+WORKDIR /app/server
+COPY server/package*.json ./
+RUN apk add --no-cache sqlite sqlite-dev python3 make g++ && \
+    npm ci
 
-# Build stage for the application
-FROM node:18-alpine AS builder
+# Final stage
+FROM node:18-alpine
 WORKDIR /app
 
-# Install SQLite and create necessary directories
+# Install runtime dependencies
 RUN apk add --no-cache sqlite && \
     mkdir -p /app/server/data /app/node_modules/.vite-temp
 
-# Copy dependencies and source code
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/server/node_modules ./server/node_modules
-COPY --from=deps /app/server/data ./server/data
-COPY . .
+# Copy dependencies
+COPY --from=client-deps /app/node_modules ./node_modules
+COPY --from=server-deps /app/server/node_modules ./server/node_modules
 
-# Ensure server dependencies are available
-RUN cd server && npm ci && cd ..
+# Copy application source
+COPY . .
 
 # Set proper permissions
 RUN chown -R node:node /app && \
