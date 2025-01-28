@@ -32,12 +32,12 @@ services:
     ports:
       - "3003:3003"
     volumes:
-      - .:/app
-      - /app/node_modules
+      - ./server:/app/server
       - /app/server/node_modules
       - ./server/data:/app/server/data:delegated
     environment:
       - NODE_ENV=development
+      - PORT=3003
     command: npm start
     restart: unless-stopped
     healthcheck:
