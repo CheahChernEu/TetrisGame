@@ -15,8 +15,10 @@ COPY package*.json ./
 COPY server/package*.json ./server/
 
 # Install dependencies
-RUN npm ci
-RUN cd server && npm ci
+RUN npm ci && npm cache clean --force
+WORKDIR /app/server
+RUN npm ci && npm cache clean --force
+WORKDIR /app
 
 # Copy source code
 COPY . .
