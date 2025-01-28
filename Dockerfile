@@ -29,9 +29,10 @@ COPY --from=deps /app/server/node_modules ./server/node_modules
 # Copy source code
 COPY . .
 
-# Create data directory for SQLite and set permissions
-RUN mkdir -p /app/server/data && \
-    chown -R node:node /app
+# Create required directories and set permissions
+RUN mkdir -p /app/server/data /app/node_modules/.vite-temp && \
+    chown -R node:node /app && \
+    chmod -R 755 /app/node_modules/.vite-temp
 
 # Switch to node user
 USER node
