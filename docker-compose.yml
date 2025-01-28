@@ -29,7 +29,7 @@ services:
     volumes:
       - ./server:/app
       - /app/node_modules
-      - ./server/data:/app/data:rw
+      - tetris_data:/app/data
     environment:
       - NODE_ENV=development
       - PORT=3003
@@ -37,3 +37,6 @@ services:
     user: "node"
     init: true
     restart: unless-stopped
+
+volumes:
+  tetris_data:
