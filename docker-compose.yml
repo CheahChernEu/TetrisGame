@@ -22,7 +22,8 @@ services:
       - WATCHPACK_POLLING=true
     command: npm run dev -- --host 0.0.0.0
     depends_on:
-      - tetris-server
+      tetris-server:
+        condition: service_healthy
 
   tetris-server:
     build:

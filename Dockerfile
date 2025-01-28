@@ -3,7 +3,8 @@ FROM node:18-alpine AS deps
 WORKDIR /app
 
 # Install SQLite and required build dependencies
-RUN apk add --no-cache sqlite sqlite-dev python3 make g++
+RUN apk add --no-cache sqlite sqlite-dev python3 make g++ && \
+    mkdir -p /app/server/data
 
 # Copy package files
 COPY package*.json ./
@@ -13,30 +14,28 @@ COPY server/package*.json ./server/
 RUN npm ci
 WORKDIR /app/server
 RUN npm ci
-RUN npm install express cors sqlite3 ws
 WORKDIR /app
 
 # Build stage for the application
 FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Install SQLite
-RUN apk add --no-cache sqlite
+# Install SQLite and create necessary directories
+RUN apk add --no-cache sqlite && \
+    mkdir -p /app/server/data /app/node_modules/.vite-temp
 
-# Copy dependencies
+# Copy dependencies and source code
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/server/node_modules ./server/node_modules
-
-# Copy source code
+COPY --from=deps /app/server/data ./server/data
 COPY . .
 
-# Create required directories and set permissions
-RUN mkdir -p /app/server/data /app/node_modules/.vite-temp && \
-    chown -R node:node /app && \
+# Set proper permissions
+RUN chown -R node:node /app && \
     chmod -R 755 /app/node_modules/.vite-temp && \
     chmod -R 777 /app/server/data
 
-# Switch to node user
+# Switch to node user for security
 USER node
 
 # Set environment variables for file watching
