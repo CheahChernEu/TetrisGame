@@ -1,34 +1,48 @@
-FROM node:18-alpine
+# Build stage for dependencies
+FROM node:18-alpine AS deps
+WORKDIR /app
 
 # Install SQLite dependencies
 RUN apk add --no-cache sqlite
-
-# Set working directory
-WORKDIR /app
-
-# Set environment variables for file watching
-ENV CHOKIDAR_USEPOLLING=true
-ENV WATCHPACK_POLLING=true
 
 # Copy package files
 COPY package*.json ./
 COPY server/package*.json ./server/
 
 # Install dependencies
-RUN npm ci && npm cache clean --force
+RUN npm ci
 WORKDIR /app/server
-RUN npm ci && npm cache clean --force
+RUN npm ci
 WORKDIR /app
+
+# Build stage for the application
+FROM node:18-alpine AS builder
+WORKDIR /app
+
+# Install SQLite
+RUN apk add --no-cache sqlite
+
+# Copy dependencies
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/server/node_modules ./server/node_modules
 
 # Copy source code
 COPY . .
 
-# Create data directory for SQLite
-RUN mkdir -p /app/server/data
+# Create data directory for SQLite and set permissions
+RUN mkdir -p /app/server/data && \
+    chown -R node:node /app
 
-# Expose development and API ports
+# Switch to node user
+USER node
+
+# Set environment variables for file watching
+ENV CHOKIDAR_USEPOLLING=true
+ENV WATCHPACK_POLLING=true
+
+# Expose ports
 EXPOSE 5173
-EXPOSE 3005
+EXPOSE 3003
 
-# Start development server
+# Default command (will be overridden by docker-compose)
 CMD ["npm", "run", "dev"]

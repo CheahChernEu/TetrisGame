@@ -5,24 +5,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: builder
     ports:
       - "5173:5173"
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/dist
     environment:
       - NODE_ENV=development
       - VITE_HOST=0.0.0.0
-      - VITE_API_BASE_URL=http://194.233.80.15:3005
+      - VITE_API_BASE_URL=http://localhost:3003
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
     command: npm run dev -- --host 0.0.0.0
-    stdin_open: true
-    tty: true
     depends_on:
       - tetris-server
 
@@ -30,14 +26,22 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: builder
     working_dir: /app/server
+    user: node
     ports:
-      - "3005:3005"
+      - "3003:3003"
     volumes:
       - .:/app
       - /app/node_modules
-      - ./server/data:/app/server/data
+      - /app/server/node_modules
+      - ./server/data:/app/server/data:delegated
     environment:
       - NODE_ENV=development
     command: npm start
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3003/leaderboard"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
