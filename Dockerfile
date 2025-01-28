@@ -11,10 +11,10 @@ COPY package*.json ./
 COPY server/package*.json ./server/
 
 # Install dependencies
-RUN npm ci
-WORKDIR /app/server
-RUN npm ci
-WORKDIR /app
+RUN npm ci && \
+    cd server && \
+    npm ci && \
+    cd ..
 
 # Build stage for the application
 FROM node:18-alpine AS builder
@@ -29,6 +29,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/server/node_modules ./server/node_modules
 COPY --from=deps /app/server/data ./server/data
 COPY . .
+
+# Ensure server dependencies are available
+RUN cd server && npm ci && cd ..
 
 # Set proper permissions
 RUN chown -R node:node /app && \
