@@ -32,6 +32,9 @@ RUN mkdir -p /app/data && \
     chmod 755 /app && \
     chmod 777 /app/data
 
+# Initialize the database
+RUN node init-db.js
+
 EXPOSE 3003
 USER node
 CMD ["npm", "run", "dev"]
