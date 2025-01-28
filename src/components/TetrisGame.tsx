@@ -5,6 +5,7 @@ import { Cell } from '../styles/StyledComponents';
 import { InstructionsPanel } from '../styles/InstructionsPanel';
 import { GameState, Position, TetrisPiece, BOARD_WIDTH, BOARD_HEIGHT, TETROMINOS, LEVEL_SPEEDS, GameBoardProps } from '../types/tetris';
 import { useBackgroundMusic } from '../utils/audio';
+import { leaderboardService } from '../services/leaderboardService';
 
 const GameContainer = styled.div`
   display: flex;
@@ -274,6 +275,8 @@ interface TetrisGameProps {
   timeLeft?: number;
   playerNickname?: string;
   shouldStartCountdown?: boolean;
+  onGarbageBlocksGenerated?: (lines: number) => void;
+  onReceiveGarbageBlocks?: (handler: (lines: number) => void) => void;
 }
 
 const TetrisGame: React.FC<TetrisGameProps> = ({ 
@@ -284,12 +287,40 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
   isGameOver: externalGameOver,
   timeLeft,
   playerNickname,
-  shouldStartCountdown = false
+  shouldStartCountdown = false,
+  onGarbageBlocksGenerated,
+  onReceiveGarbageBlocks
 }) => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [countdownNumber, setCountdownNumber] = useState(3);
+  const handleGarbageBlocks = useCallback((lines: number) => {
+    setGameState(prev => {
+      const newBoard = prev.board.map(row => [...row]);
+      
+      // Remove top lines to make room for garbage
+      newBoard.splice(0, lines);
+      
+      // Add garbage lines at the bottom
+      for (let i = 0; i < lines; i++) {
+        const garbageLine = Array(BOARD_WIDTH).fill('gray');
+        const holePosition = Math.floor(Math.random() * BOARD_WIDTH);
+        garbageLine[holePosition] = '';
+        newBoard.push(garbageLine);
+      }
+      
+      return { ...prev, board: newBoard };
+    });
+  }, []);
+
+  // Register garbage block handler
+  useEffect(() => {
+    if (isMultiplayer && onReceiveGarbageBlocks) {
+      onReceiveGarbageBlocks(handleGarbageBlocks);
+    }
+  }, [isMultiplayer, onReceiveGarbageBlocks, handleGarbageBlocks]);
+
   const [gameState, setGameState] = useState<GameState>({
     board: createEmptyBoard(),
     currentPiece: getRandomTetromino(),
@@ -399,11 +430,17 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     };
   }, []);
 
+  // Remove the import statement from line 458
   useEffect(() => {
-    const storedLeaderboard = localStorage.getItem('tetrisLeaderboard');
-    if (storedLeaderboard) {
-      setLeaderboard(JSON.parse(storedLeaderboard));
-    }
+    // Initialize leaderboard from API
+    leaderboardService.getLeaderboard().then(setLeaderboard);
+
+    // Subscribe to real-time updates
+    const ws = leaderboardService.subscribeToUpdates(setLeaderboard);
+
+    return () => {
+      ws.close();
+    };
   }, []);
 
   useEffect(() => {
@@ -415,15 +452,11 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
         timestamp: Date.now()
       };
 
-      const updatedLeaderboard = [...leaderboard, newEntry]
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 5);
-
-      setLeaderboard(updatedLeaderboard);
-      localStorage.setItem('tetrisLeaderboard', JSON.stringify(updatedLeaderboard));
+      leaderboardService.addEntry(newEntry).then(setLeaderboard);
     }
   }, [gameState.isGameOver]);
 
+  // Remove the duplicate import statement
   useEffect(() => {
     if (isCountingDown) {
       const countdownInterval = setInterval(() => {
@@ -482,17 +515,32 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     setNewBlocks(newBlockPositions);
 
     let linesCleared = 0;
-    const completedLineIndices: number[] = [];
     const updatedBoard = newBoard.filter((row, index) => {
       const isComplete = row.every(cell => cell !== '');
       if (isComplete) {
         linesCleared++;
-        completedLineIndices.push(index);
+        setCompletedLines(prev => [...prev, index]);
       }
       return !isComplete;
     });
 
-    setCompletedLines(completedLineIndices);
+    // Calculate and send garbage blocks to opponent
+    if (isMultiplayer && onGarbageBlocksGenerated && linesCleared > 0) {
+      let garbageLines = 0;
+      if (linesCleared >= 4) { // Tetris
+        garbageLines = 4;
+      } else if (linesCleared === 3) {
+        garbageLines = 2;
+      } else if (linesCleared === 2) {
+        garbageLines = 1;
+      }
+
+      if (garbageLines > 0) {
+        onGarbageBlocksGenerated(garbageLines);
+      }
+    }
+
+    setCompletedLines(completedLines);
 
     while (updatedBoard.length < BOARD_HEIGHT) {
       updatedBoard.unshift(Array(BOARD_WIDTH).fill(''));
@@ -553,6 +601,22 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
         if (isComplete) linesCleared++;
         return !isComplete;
       });
+      
+      // Calculate and send garbage blocks to opponent
+      if (isMultiplayer && onGarbageBlocksGenerated && linesCleared > 0) {
+        let garbageLines = 0;
+        if (linesCleared >= 4) { // Tetris
+          garbageLines = 4;
+        } else if (linesCleared === 3) {
+          garbageLines = 2;
+        } else if (linesCleared === 2) {
+          garbageLines = 1;
+        }
+      
+        if (garbageLines > 0) {
+          onGarbageBlocksGenerated(garbageLines);
+        }
+      }
       
       while (updatedBoard.length < BOARD_HEIGHT) {
         updatedBoard.unshift(Array(BOARD_WIDTH).fill(''));
@@ -725,24 +789,6 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
   }, [gameState.canSavePiece, gameState.savedPiece, gameState.currentPiece, checkCollision]);
 
 
-  const resetGame = () => {
-    setGameState({
-      board: createEmptyBoard(),
-      currentPiece: getRandomTetromino(),
-      currentPosition: { x: Math.floor(BOARD_WIDTH / 2) - 1, y: 0 },
-      nextPiece: getRandomTetromino(),
-      savedPiece: null,
-      canSavePiece: true,
-      score: 0,
-      isGameOver: false,
-      level: 1,
-      lastKeyPressTime: {}
-    });
-    setIsCountingDown(true);
-    setCountdownNumber(3);
-    setIsMusicPlaying(false);
-  };
-
   const getGhostPosition = useCallback(() => {
     let ghostY = gameState.currentPosition.y;
     while (!checkCollision({ x: gameState.currentPosition.x, y: ghostY + 1 }, gameState.currentPiece)) {
@@ -823,6 +869,24 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
 
   return (
     <GameContainer>
+      {isMultiplayer && gameState.isGameOver && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: '#ff0000',
+            fontSize: '4em',
+            fontFamily: 'Orbitron, sans-serif',
+            textShadow: '0 0 20px rgba(255, 0, 0, 0.7)',
+            zIndex: 100,
+            pointerEvents: 'none'
+          }}
+        >
+          K.O
+        </div>
+      )}
       {!isMultiplayer && leaderboard.length > 0 && (
         <LeaderboardContainer>
           <LeaderboardTitle>Top 5 Players</LeaderboardTitle>
@@ -954,22 +1018,6 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
               </div>
             )}
           </InstructionsPanel>
-          <AnimatePresence>
-            {gameState.isGameOver && (
-              <GameButton
-                onClick={resetGame}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0 }}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                Game Over!
-                <br />
-                Play Again
-              </GameButton>
-            )}
-          </AnimatePresence>
           <GameButton
             onClick={onBackToMenu}
             whileHover={{ scale: 1.1 }}

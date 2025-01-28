@@ -13,6 +13,7 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_HOST=0.0.0.0
+      - VITE_API_BASE_URL=http://localhost:3000
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
     ulimits:
@@ -22,3 +23,21 @@ services:
     command: npm run dev -- --host 0.0.0.0
     stdin_open: true
     tty: true
+    depends_on:
+      - tetris-server
+
+  tetris-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /app/server
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./server/data:/app/server/data
+    environment:
+      - NODE_ENV=development
+    command: npm start
+    restart: unless-stopped

@@ -30,7 +30,7 @@ const CountdownText = styled(motion.div)`
   letter-spacing: 4px;
 `;
 
-const VictoryPopup = styled(motion.div)`
+const ResultDialog = styled(motion.div)`
   position: fixed;
   top: 0;
   left: 0;
@@ -39,22 +39,82 @@ const VictoryPopup = styled(motion.div)`
   display: flex;
   justify-content: center;
   align-items: center;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.8);
   z-index: 1000;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(5px);
+
+  .dialog-content {
+    background: rgba(0, 0, 0, 0.95);
+    padding: clamp(20px, 4vw, 40px);
+    border: 2px solid #0ff;
+    border-radius: 15px;
+    color: #0ff;
+    text-align: center;
+    width: clamp(300px, 90vw, 500px);
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3),
+                inset 0 0 20px rgba(0, 255, 255, 0.2);
+  }
+
+  h2 {
+    font-size: clamp(2em, 5vw, 3em);
+    margin-bottom: clamp(15px, 3vw, 30px);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-family: 'Orbitron', sans-serif;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.7),
+                0 0 20px rgba(0, 255, 255, 0.5),
+                0 0 30px rgba(0, 255, 255, 0.3);
+    animation: glowPulse 2s infinite alternate;
+  }
+
+  .scores {
+    margin: clamp(15px, 3vw, 30px) 0;
+    font-size: clamp(1.2em, 2.5vw, 1.6em);
+    font-family: 'Orbitron', sans-serif;
+    line-height: 1.8;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideUp 0.5s ease forwards 0.5s;
+  }
+
+  .button-container {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideUp 0.5s ease forwards 1s;
+  }
+
+  @keyframes glowPulse {
+    from {
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.7),
+                  0 0 20px rgba(0, 255, 255, 0.5),
+                  0 0 30px rgba(0, 255, 255, 0.3);
+    }
+    to {
+      text-shadow: 0 0 15px rgba(0, 255, 255, 0.9),
+                  0 0 25px rgba(0, 255, 255, 0.7),
+                  0 0 35px rgba(0, 255, 255, 0.5);
+    }
+  }
+
+  @keyframes slideUp {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .dialog-content {
+      padding: clamp(15px, 3vw, 25px);
+      width: 85vw;
+    }
+  }
 `;
 
-const VictoryText = styled.h1`
-  color: #0ff;
-  font-size: 2.5em;
-  font-family: 'Orbitron', sans-serif;
-  text-align: center;
-  margin-bottom: 30px;
-  text-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
-  letter-spacing: 2px;
-`;
-
-const PlayAgainButton = styled(motion.button)`
+const DialogButton = styled(motion.button)`
   padding: 15px 30px;
   font-size: 1.2em;
   background: transparent;
@@ -62,16 +122,21 @@ const PlayAgainButton = styled(motion.button)`
   border: 2px solid #0ff;
   border-radius: 5px;
   cursor: pointer;
-  font-family: 'Orbitron', sans-serif;
+  font-family: 'Orbitron', sans-serif';
   text-transform: uppercase;
   letter-spacing: 2px;
   transition: all 0.3s;
+  margin: 10px;
+  width: 200px;
   
   &:hover {
     background: rgba(0, 255, 255, 0.1);
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
   }
 `;
+
+
+
 
 const BattleContainer = styled.div<ContainerProps>`
   display: flex;
@@ -182,6 +247,9 @@ const TetrisBattle: React.FC<TetrisBattleProps> = ({ onBackToMenu }) => {
   const [winner, setWinner] = useState<number | null>(null);
   const [countdownNumber, setCountdownNumber] = useState(3);
   const [showCountdown, setShowCountdown] = useState(false);
+  const [showResultDialog, setShowResultDialog] = useState(false);
+  const [player1GarbageHandler, setPlayer1GarbageHandler] = useState<((lines: number) => void) | null>(null);
+  const [player2GarbageHandler, setPlayer2GarbageHandler] = useState<((lines: number) => void) | null>(null);
 
   useBackgroundMusic({ isPlaying: isMusicPlaying });
 
@@ -207,6 +275,7 @@ const TetrisBattle: React.FC<TetrisBattleProps> = ({ onBackToMenu }) => {
     } else if (timeLeft === 0 && !isGameOver && hasGameStarted) {
       setIsGameOver(true);
       setWinner(player1Score > player2Score ? 1 : player1Score < player2Score ? 2 : null);
+      setShowResultDialog(true);
       setIsMusicPlaying(false); // Stop the music when game ends due to timeout
     }
   }, [timeLeft, isGameOver, player1Score, player2Score, isCountingDown, hasGameStarted]);
@@ -271,31 +340,24 @@ const TetrisBattle: React.FC<TetrisBattleProps> = ({ onBackToMenu }) => {
     if (!isGameOver) setPlayer2Score(score);
   };
 
-  const resetGame = () => {
-    setTimeLeft(selectedTime);
-    setIsGameOver(false);
-    setWinner(null);
-    setPlayer1Score(0);
-    setPlayer2Score(0);
-    setIsCountingDown(true);
-    setCountdownNumber(3);
-    setHasGameStarted(false);
-    setIsMusicPlaying(false); // Stop music when resetting game
-  };
-
   const startGame = (minutes: number) => {
-    setSelectedTime(minutes * 60);
-    setTimeLeft(minutes * 60);
-    setShowCountdown(true);
-    setCountdownNumber(3);
-    setIsCountingDown(true);
+    setHasGameStarted(false);
+    setTimeout(() => {
+      setSelectedTime(minutes * 60);
+      setTimeLeft(minutes * 60);
+      setShowCountdown(true);
+      setCountdownNumber(3);
+      setIsCountingDown(true);
+      setIsGameOver(false);
+      setShowResultDialog(false);
+      setPlayer1Score(0);
+      setPlayer2Score(0);
+      setWinner(null);
+      setHasGameStarted(true);
+    }, 100);
   };
 
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
+
 
   if (!hasGameStarted) {
     return (
@@ -392,7 +454,11 @@ const TetrisBattle: React.FC<TetrisBattleProps> = ({ onBackToMenu }) => {
         fontSize: '2em',
         fontFamily: 'Orbitron, sans-serif'
       }}>
-        {formatTime(timeLeft)}
+        {isGameOver ? (
+          <div style={{ textAlign: 'center' }}>
+            {winner === null ? "It's a Tie!" : `Player ${winner} Wins!`}
+          </div>
+        ) : null}
       </div>
       <GamesWrapper>
         <div>
@@ -403,6 +469,8 @@ const TetrisBattle: React.FC<TetrisBattleProps> = ({ onBackToMenu }) => {
             onBackToMenu={onBackToMenu}
             isGameOver={isGameOver}
             timeLeft={timeLeft}
+            onGarbageBlocksGenerated={(lines) => player2GarbageHandler?.(lines)}
+            onReceiveGarbageBlocks={(handler) => setPlayer1GarbageHandler(() => handler)}
           />
         </div>
         <div>
@@ -413,39 +481,65 @@ const TetrisBattle: React.FC<TetrisBattleProps> = ({ onBackToMenu }) => {
             onBackToMenu={onBackToMenu}
             isGameOver={isGameOver}
             timeLeft={timeLeft}
+            onGarbageBlocksGenerated={(lines) => player1GarbageHandler?.(lines)}
+            onReceiveGarbageBlocks={(handler) => setPlayer2GarbageHandler(() => handler)}
           />
         </div>
       </GamesWrapper>
       <AnimatePresence>
-        {isGameOver && (
-          <VictoryPopup
+        {showResultDialog && (
+          <ResultDialog
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <div>
-              <VictoryText>
-                {winner ? `Player ${winner} Wins! (${winner === 1 ? player1Score : player2Score} pts)` : `It's a Tie! (${player1Score} - ${player2Score})`}
-              </VictoryText>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <PlayAgainButton
-                  onClick={resetGame}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+            <motion.div 
+              className="dialog-content"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25,
+                delay: 0.2
+              }}
+            >
+              <motion.h2
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ 
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 30,
+                  delay: 0.4
+                }}
+              >
+                {winner === null ? "It's a Tie!" : `Player ${winner} Wins!`}
+              </motion.h2>
+              <div className="scores">
+                Player 1 Score: {player1Score}<br />
+                Player 2 Score: {player2Score}
+              </div>
+              <div className="button-container">
+                <DialogButton
+                  onClick={() => startGame(selectedTime / 60)}
+                  whileHover={{ scale: 1.05, boxShadow: "0 0 25px rgba(0, 255, 255, 0.7)" }}
+                  whileTap={{ scale: 0.95 }}
                 >
                   Play Again
-                </PlayAgainButton>
-                <PlayAgainButton
+                </DialogButton>
+                <DialogButton
                   onClick={handleBackToMenu}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.05, boxShadow: "0 0 25px rgba(0, 255, 255, 0.7)" }}
+                  whileTap={{ scale: 0.95 }}
                 >
                   Back to Menu
-                </PlayAgainButton>
+                </DialogButton>
               </div>
-            </div>
-          </VictoryPopup>
+            </motion.div>
+          </ResultDialog>
         )}
       </AnimatePresence>
     </BattleContainer>
