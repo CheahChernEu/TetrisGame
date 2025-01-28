@@ -1,11 +1,10 @@
 version: '3.8'
 
 services:
-  tetris-app:
+  frontend:
     build:
       context: .
       dockerfile: Dockerfile
-      target: frontend
     ports:
       - "5173:5173"
     volumes:
@@ -13,30 +12,21 @@ services:
       - /app/node_modules
     environment:
       - VITE_API_BASE_URL=http://194.233.80.15:3003
-      - VITE_WS_URL=ws://194.233.80.15:3003
-      - NODE_ENV=development
-    restart: unless-stopped
     depends_on:
-      - tetris-server
+      - backend
 
-  tetris-server:
+  backend:
     build:
-      context: .
+      context: ./server
       dockerfile: Dockerfile
-      target: backend
     ports:
       - "3003:3003"
     volumes:
       - ./server:/app
       - /app/node_modules
-      - tetris_data:/app/data
+      - sqlite_data:/app/data
     environment:
-      - NODE_ENV=development
       - PORT=3003
-      - SQLITE_DB_PATH=/app/data/tetris.db
-    user: "node"
-    init: true
-    restart: unless-stopped
 
 volumes:
-  tetris_data:
+  sqlite_data:
