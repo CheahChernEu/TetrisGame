@@ -16,8 +16,8 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_HOST=0.0.0.0
-      - VITE_API_BASE_URL=http://194.233.80.15:3003
-      - VITE_WS_URL=ws://194.233.80.15:3003
+      - VITE_API_BASE_URL=http://localhost:3003
+      - VITE_WS_URL=ws://localhost:3003
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
     command: npm run dev -- --host 0.0.0.0
@@ -35,7 +35,7 @@ services:
       - "3003:3003"
     volumes:
       - ./server:/app/server
-      - /app/server/node_modules
+      - /app/server/node_modules  # Preserves node_modules from the image
       - ./server/data:/app/server/data:rw
     environment:
       - NODE_ENV=development
