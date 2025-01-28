@@ -13,6 +13,7 @@ COPY server/package*.json ./server/
 RUN npm ci
 WORKDIR /app/server
 RUN npm ci
+RUN npm install express cors sqlite3 ws
 WORKDIR /app
 
 # Build stage for the application
