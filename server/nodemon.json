@@ -1,0 +1,13 @@
+{
+  "ignore": [
+    "node_modules/*",
+    "data/*",
+    ".git",
+    "*.test.js"
+  ],
+  "verbose": true,
+  "watch": [
+    "server.js",
+    "db.js"
+  ]
+}
