@@ -13,7 +13,7 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_HOST=0.0.0.0
-      - VITE_API_BASE_URL=http://localhost:3000
+      - VITE_API_BASE_URL=http://localhost:3005
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
     ulimits:
@@ -32,7 +32,7 @@ services:
       dockerfile: Dockerfile
     working_dir: /app/server
     ports:
-      - "3000:3000"
+      - "3005:3005"
     volumes:
       - .:/app
       - /app/node_modules

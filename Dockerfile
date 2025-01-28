@@ -26,7 +26,7 @@ RUN mkdir -p /app/server/data
 
 # Expose development and API ports
 EXPOSE 5173
-EXPOSE 3000
+EXPOSE 3005
 
 # Start development server
 CMD ["npm", "run", "dev"]
