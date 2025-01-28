@@ -32,6 +32,9 @@ RUN mkdir -p /app/data && \
     chmod 755 /app && \
     chmod 777 /app/data
 
+# Set environment variable for database path
+ENV SQLITE_DB_PATH=/app/data/tetris.db
+
 # Initialize the database
 RUN node init-db.js
 

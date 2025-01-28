@@ -33,5 +33,7 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3003
+      - SQLITE_DB_PATH=/app/data/tetris.db
     user: "node"
+    init: true
     restart: unless-stopped

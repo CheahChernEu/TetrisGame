@@ -2,7 +2,14 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 // Ensure the data directory exists
-const dbPath = path.join(__dirname, 'data', 'tetris.db');
+const dbPath = process.env.SQLITE_DB_PATH || path.join(__dirname, 'data', 'tetris.db');
+
+// Ensure the data directory exists
+const fs = require('fs');
+const dataDir = path.dirname(dbPath);
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
 
 // Create and initialize the database
 const db = new sqlite3.Database(dbPath, (err) => {
