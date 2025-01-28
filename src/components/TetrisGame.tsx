@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import styled from 'styled-components';
 import { Cell } from '../styles/StyledComponents';
-import { InstructionsPanel } from '../styles/InstructionsPanel';
 import { GameState, Position, TetrisPiece, BOARD_WIDTH, BOARD_HEIGHT, TETROMINOS, LEVEL_SPEEDS, GameBoardProps } from '../types/tetris';
 import { useBackgroundMusic } from '../utils/audio';
 import { leaderboardService } from '../services/leaderboardService';
@@ -171,21 +170,21 @@ const NextPiece = styled.div`
   }
 `;
 
-const GameButton = styled(motion.button)`
+const GameButton = styled(motion.button)<{ $isRestarting?: boolean }>`
   padding: 6px 12px;
   background: transparent;
   color: #0ff;
-  border: 2px solid #0ff;
-  border-radius: 5px;
-  cursor: pointer;
+  border: none;
+  cursor: ${props => props.$isRestarting ? 'not-allowed' : 'pointer'};
   font-family: 'Orbitron', sans-serif;
   text-transform: uppercase;
   letter-spacing: 1px;
   font-size: 0.8em;
   transition: all 0.3s;
+  opacity: ${props => props.$isRestarting ? '0.5' : '1'};
   &:hover {
-    background: rgba(0, 255, 255, 0.1);
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    background: ${props => props.$isRestarting ? 'transparent' : 'rgba(0, 255, 255, 0.1)'};
+    box-shadow: ${props => props.$isRestarting ? 'none' : '0 0 10px rgba(0, 255, 255, 0.5)'};
   }
 `;
 
@@ -279,11 +278,11 @@ interface TetrisGameProps {
   onReceiveGarbageBlocks?: (handler: (lines: number) => void) => void;
 }
 
-const TetrisGame: React.FC<TetrisGameProps> = ({ 
-  isMultiplayer = false, 
-  playerNumber = 1, 
-  onScoreUpdate, 
-  onBackToMenu, 
+const TetrisGame: React.FC<TetrisGameProps> = ({
+  isMultiplayer = false,
+  playerNumber = 1,
+  onScoreUpdate,
+  onBackToMenu,
   isGameOver: externalGameOver,
   timeLeft,
   playerNickname,
@@ -415,19 +414,36 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     return () => {
       setIsCountingDown(false);
       setCountdownNumber(3);
-      setGameState({
-        board: createEmptyBoard(),
-        currentPiece: getRandomTetromino(),
-        currentPosition: { x: Math.floor(BOARD_WIDTH / 2) - 1, y: 0 },
-        nextPiece: getRandomTetromino(),
-        savedPiece: null,
-        canSavePiece: true,
-        score: 0,
-        isGameOver: false,
-        level: 1,
-        lastKeyPressTime: {}
-      });
     };
+  }, []);
+
+  const [isRestarting, setIsRestarting] = useState(false);
+
+const handleRestart = useCallback(() => {
+    if (isRestarting) return; // Prevent multiple rapid restarts
+    setIsRestarting(true);
+    setGameState({
+      board: createEmptyBoard(),
+      currentPiece: getRandomTetromino(),
+      currentPosition: { x: Math.floor(BOARD_WIDTH / 2) - 1, y: 0 },
+      nextPiece: getRandomTetromino(),
+      savedPiece: null,
+      canSavePiece: true,
+      score: 0,
+      isGameOver: false,
+      level: 1,
+      lastKeyPressTime: {}
+    });
+    setNewBlocks([]);
+    setCompletedLines([]);
+    setIsCountingDown(true);
+    setCountdownNumber(3);
+    setIsMusicPlaying(true);
+    
+    // Reset the restarting state after the countdown finishes
+    setTimeout(() => {
+      setIsRestarting(false);
+    }, 3000); // 3 seconds for the countdown
   }, []);
 
   // Remove the import statement from line 458
@@ -861,6 +877,25 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
     );
   };
 
+  const renderSavedPiece = () => {
+    if (!gameState.savedPiece) return null;
+    return (
+      <div style={{ display: 'grid', gridTemplateRows: `repeat(${gameState.savedPiece.shape.length}, 1fr)`, gap: '2px' }}>
+        {gameState.savedPiece.shape.map((row, y) => (
+          <div key={y} style={{ display: 'flex', gap: '2px' }}>
+            {row.map((cell, x) => (
+              <Cell
+                key={`saved-${y}-${x}`}
+                $color={cell && gameState.savedPiece ? gameState.savedPiece.color : '#1a1a1a'}
+                style={{ width: '20px', height: '20px' }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   useEffect(() => {
     if (onScoreUpdate && !gameState.isGameOver) {
       onScoreUpdate(gameState.score);
@@ -955,74 +990,54 @@ const TetrisGame: React.FC<TetrisGameProps> = ({
           <ScoreBoard>
             <h3>Score</h3>
             <Score>{gameState.score}</Score>
-            <h3>Level</h3>
-            <Score>{gameState.level}</Score>
           </ScoreBoard>
           <NextPiece>
-            <h3>Next</h3>
-            {renderNextPiece()}
+            <h3>Hold</h3>
+            <GameBoard style={{ width: '120px', height: '120px' }}>
+              {renderSavedPiece()}
+            </GameBoard>
           </NextPiece>
           <NextPiece>
-            <h3>Hold</h3>
-            {gameState.savedPiece && (
-              <div style={{ display: 'grid', gridTemplateRows: `repeat(${gameState.savedPiece.shape.length}, 1fr)`, gap: '2px' }}>
-                {gameState.savedPiece.shape.map((row, y) => (
-                  <div key={y} style={{ display: 'flex', gap: '2px' }}>
-                    {row.map((cell, x) => (
-                      <Cell
-                        key={`saved-${y}-${x}`}
-                        $color={cell ? gameState.savedPiece!.color : '#1a1a1a'}
-                        style={{ width: '20px', height: '20px' }}
-                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
+            <h3>Next Piece</h3>
+            <GameBoard style={{ width: '120px', height: '120px' }}>
+              {renderNextPiece()}
+            </GameBoard>
           </NextPiece>
-          <InstructionsPanel>
-            <h3>Controls</h3>
-            {!isMultiplayer ? (
-              <ul>
-                <li><span>Move Left</span> <span className="key">←</span></li>
-                <li><span>Move Right</span> <span className="key">→</span></li>
-                <li><span>Move Down</span> <span className="key">↓</span></li>
-                <li><span>Rotate</span> <span className="key">↑</span></li>
-                <li><span>Hard Drop</span> <span className="key">Space</span></li>
-                <li><span>Hold Piece</span> <span className="key">M</span></li>
-              </ul>
-            ) : (
-              <div className="controls-section">
-                <div className="controls-title">Player {playerNumber}</div>
-                <ul>
-                  {playerNumber === 1 ? (
-                    <>
-                      <li><span>Move Left</span> <span className="key">A</span></li>
-                      <li><span>Move Right</span> <span className="key">D</span></li>
-                      <li><span>Move Down</span> <span className="key">S</span></li>
-                      <li><span>Rotate</span> <span className="key">W</span></li>
-                      <li><span>Hard Drop</span> <span className="key">Shift</span></li>
-                      <li><span>Hold Piece</span> <span className="key">Tab</span></li>
-                    </>
-                  ) : (
-                    <>
-                      <li><span>Move Left</span> <span className="key">←</span></li>
-                      <li><span>Move Right</span> <span className="key">→</span></li>
-                      <li><span>Move Down</span> <span className="key">↓</span></li>
-                      <li><span>Rotate</span> <span className="key">↑</span></li>
-                      <li><span>Hard Drop</span> <span className="key">Space</span></li>
-                      <li><span>Hold Piece</span> <span className="key">M</span></li>
-                    </>
-                  )}
-                </ul>
-              </div>
-            )}
-          </InstructionsPanel>
-          <GameButton
-            onClick={onBackToMenu}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
+          <GameButton onClick={handleRestart} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <button
+              onClick={handleRestart}
+              disabled={isRestarting}
+              style={{
+                marginTop: '10px',
+                background: isRestarting ? 'rgba(0, 255, 255, 0.1)' : 'transparent',
+                color: '#0ff',
+                border: '2px solid #0ff',
+                borderRadius: '5px',
+                cursor: isRestarting ? 'not-allowed' : 'pointer',
+                fontFamily: 'Orbitron, sans-serif',
+                textTransform: 'uppercase',
+                letterSpacing: '2px',
+                padding: '10px 20px',
+                width: '100%',
+                transition: 'all 0.3s'
+              }}
+              onMouseEnter={(e) => {
+                if (!isRestarting) {
+                  e.currentTarget.style.background = 'rgba(0, 255, 255, 0.1)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 255, 255, 0.5)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isRestarting) {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.boxShadow = 'none';
+                }
+              }}
+            >
+              RESTART GAME
+            </button>
+          </GameButton>
+          <GameButton onClick={onBackToMenu} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             Back to Menu
           </GameButton>
         </SidePanel>

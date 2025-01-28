@@ -90,17 +90,17 @@ export const TETROMINOS = {
 export type TetrominoType = keyof typeof TETROMINOS;
 
 export const LEVEL_SPEEDS = {
-  1: 800,  // Slower base speed
-  2: 700,  // Slower increased speed
-  3: 600,  // Slower increased speed
-  4: 550,  // Increased speed
-  5: 450,  // Increased speed
-  6: 350,  // Increased speed
-  7: 250,   // Increased speed
-  8: 150,   // Increased speed
-  9: 150,   // Increased speed
-  10: 120   // Maximum speed
-} as const;
+  1: 600,  // Faster base speed
+  2: 450,  // Faster increased speed
+  3: 350,  // Faster increased speed
+  4: 300,
+  5: 250,
+  6: 200,
+  7: 170,
+  8: 140,
+  9: 120,
+  10: 100
+};
 
 export interface LeaderboardEntry {
   nickname: string;
