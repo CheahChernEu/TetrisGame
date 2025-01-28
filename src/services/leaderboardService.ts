@@ -10,9 +10,7 @@ export const leaderboardService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
-      // Fallback to localStorage if API fails
-      const storedLeaderboard = localStorage.getItem('tetrisLeaderboard');
-      return storedLeaderboard ? JSON.parse(storedLeaderboard) : [];
+      return [];
     }
   },
 
@@ -22,14 +20,7 @@ export const leaderboardService = {
       return response.data;
     } catch (error) {
       console.error('Error adding leaderboard entry:', error);
-      // Fallback to localStorage if API fails
-      const storedLeaderboard = localStorage.getItem('tetrisLeaderboard');
-      const currentLeaderboard = storedLeaderboard ? JSON.parse(storedLeaderboard) : [];
-      const updatedLeaderboard = [...currentLeaderboard, entry]
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 5);
-      localStorage.setItem('tetrisLeaderboard', JSON.stringify(updatedLeaderboard));
-      return updatedLeaderboard;
+      throw error;
     }
   },
 

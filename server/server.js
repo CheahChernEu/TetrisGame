@@ -73,14 +73,27 @@ app.post('/leaderboard', (req, res) => {
       return;
     }
 
-    // Broadcast updated leaderboard to all clients
-    broadcastLeaderboard();
-    res.status(201).json({ message: 'Score added successfully' });
+    // Fetch and return the updated leaderboard
+    db.all('SELECT * FROM leaderboard ORDER BY score DESC LIMIT 5', (err, rows) => {
+      if (err) {
+        console.error('Error fetching updated leaderboard:', err);
+        res.status(500).json({ error: 'Internal server error' });
+        return;
+      }
+      // Broadcast updated leaderboard to all clients
+      const leaderboardData = JSON.stringify(rows);
+      clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(leaderboardData);
+        }
+      });
+      res.status(201).json(rows);
+    });
   });
   stmt.finalize();
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3003;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
